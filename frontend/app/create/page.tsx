@@ -35,7 +35,7 @@ export default function CreateEscrowPage() {
   const [isContractPaused, setIsContractPaused] = useState(false);
   const [isOnCorrectNetwork, setIsOnCorrectNetwork] = useState(true);
   const [whitelistedTokens, setWhitelistedTokens] = useState<
-    { address: string; name?: string }[]
+    { address: string; name?: string; symbol?: string }[]
   >([]);
   const [errors, setErrors] = useState<{
     projectTitle?: string;
@@ -103,10 +103,19 @@ export default function CreateEscrowPage() {
       const { ethers } = await import("ethers");
 
       // Known token mappings
-      const TOKEN_NAMES: { [key: string]: string } = {
-        "0x765DE816845861e75A25fCA122bb6898B8B1282a": "cUSD (Celo Dollar)",
-        "0xcebA9300f2b948710d2653dD7B07f33A8B32118C": "USDC",
-        "0x471EcE3750Da237f93B8E339c536989b8978a438": "CELO",
+      const TOKEN_INFO: { [key: string]: { name: string; symbol: string } } = {
+        "0x765DE816845861e75A25fCA122bb6898B8B1282a": {
+          name: "Celo Dollar",
+          symbol: "cUSD",
+        },
+        "0xcebA9300f2b948710d2653dD7B07f33A8B32118C": {
+          name: "USD Coin",
+          symbol: "USDC",
+        },
+        "0x471EcE3750Da237f93B8E339c536989b8978a438": {
+          name: "Celo",
+          symbol: "CELO",
+        },
       };
 
       let allWhitelistedTokens: string[] = [];
@@ -156,11 +165,42 @@ export default function CreateEscrowPage() {
         }
       }
 
-      // Map addresses to names
-      const tokensWithNames = allWhitelistedTokens.map((address) => ({
-        address,
-        name: TOKEN_NAMES[address] || undefined,
-      }));
+      // Map addresses to names and symbols, fetch from blockchain if not in hardcoded list
+      const provider = new ethers.JsonRpcProvider(CELO_MAINNET.rpcUrls[0]);
+      const ERC20_ABI = [
+        "function name() view returns (string)",
+        "function symbol() view returns (string)",
+      ];
+
+      const tokensWithInfo = await Promise.all(
+        allWhitelistedTokens.map(async (address) => {
+          // Check if we have hardcoded info
+          if (TOKEN_INFO[address]) {
+            return {
+              address,
+              name: TOKEN_INFO[address].name,
+              symbol: TOKEN_INFO[address].symbol,
+            };
+          }
+
+          // Fetch from blockchain
+          try {
+            const tokenContract = new ethers.Contract(
+              address,
+              ERC20_ABI,
+              provider
+            );
+            const [name, symbol] = await Promise.all([
+              tokenContract.name(),
+              tokenContract.symbol(),
+            ]);
+            return { address, name, symbol };
+          } catch (error) {
+            console.warn(`Failed to fetch metadata for ${address}:`, error);
+            return { address, name: undefined, symbol: undefined };
+          }
+        })
+      );
 
       // Add cUSD as default if not in list
       if (
@@ -168,20 +208,22 @@ export default function CreateEscrowPage() {
           (addr) => addr.toLowerCase() === CONTRACTS.CUSD_MAINNET.toLowerCase()
         )
       ) {
-        tokensWithNames.unshift({
+        tokensWithInfo.unshift({
           address: CONTRACTS.CUSD_MAINNET,
-          name: "cUSD (Celo Dollar)",
+          name: "Celo Dollar",
+          symbol: "cUSD",
         });
       }
 
-      setWhitelistedTokens(tokensWithNames);
+      setWhitelistedTokens(tokensWithInfo);
     } catch (error) {
       console.error("Failed to fetch whitelisted tokens:", error);
       // Fallback to default tokens
       setWhitelistedTokens([
         {
           address: CONTRACTS.CUSD_MAINNET,
-          name: "cUSD (Celo Dollar)",
+          name: "Celo Dollar",
+          symbol: "cUSD",
         },
       ]);
     }

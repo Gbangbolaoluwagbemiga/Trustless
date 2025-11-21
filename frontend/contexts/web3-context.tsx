@@ -7,11 +7,7 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import {
-  CELO_MAINNET,
-  CELO_TESTNET,
-  CONTRACTS,
-} from "@/lib/web3/config";
+import { CELO_MAINNET, CELO_TESTNET, CONTRACTS } from "@/lib/web3/config";
 import type { WalletState } from "@/lib/web3/types";
 import { useToast } from "@/hooks/use-toast";
 import { ethers } from "ethers";
@@ -48,12 +44,10 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     }
 
     // Re-check connection periodically to catch AppKit connections
-    // Only poll if not connected to avoid unnecessary checks
+    // Check more frequently to catch AppKit connections quickly
     const interval = setInterval(() => {
-      if (!wallet.isConnected) {
-        checkConnection();
-      }
-    }, 2000); // Check every 2 seconds if not connected
+      checkConnection();
+    }, 1000); // Check every 1 second
 
     return () => {
       clearInterval(interval);
@@ -68,14 +62,35 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   }, []);
 
   const checkConnection = async () => {
-    if (typeof window === "undefined" || !window.ethereum) return;
+    if (typeof window === "undefined") return;
+
+    // Try to get provider - check window.ethereum first, then try AppKit's provider
+    let provider: any = window.ethereum;
+
+    // If no window.ethereum, try to get AppKit's provider
+    if (!provider && (window as any).ethereum?.providers) {
+      // Some wallets inject multiple providers
+      provider =
+        (window as any).ethereum.providers?.[0] || (window as any).ethereum;
+    }
+
+    if (!provider) {
+      // If still no provider, check if we're connected via AppKit by checking for any injected provider
+      const injectedProviders = (window as any).ethereum?.providers || [];
+      if (injectedProviders.length > 0) {
+        provider = injectedProviders[0];
+      } else {
+        return;
+      }
+    }
 
     try {
-      const accounts = await window.ethereum.request({
+      const accounts = await provider.request({
         method: "eth_accounts",
       });
+
       if (accounts.length > 0) {
-        const chainId = await window.ethereum.request({
+        const chainId = await provider.request({
           method: "eth_chainId",
         });
         const chainIdNumber = Number.parseInt(chainId, 16);
@@ -94,7 +109,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const balance = await window.ethereum.request({
+        const balance = await provider.request({
           method: "eth_getBalance",
           params: [accounts[0], "latest"],
         });
@@ -107,8 +122,20 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         });
 
         await checkOwnerStatus(accounts[0]);
+      } else {
+        // No accounts - ensure we're marked as disconnected
+        if (wallet.isConnected) {
+          setWallet({
+            address: null,
+            chainId: null,
+            isConnected: false,
+            balance: "0",
+          });
+        }
       }
-    } catch (error) {}
+    } catch (error) {
+      // Silently fail - connection check will retry
+    }
   };
 
   const checkOwnerStatus = async (address: string) => {
@@ -370,7 +397,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
 
     setIsSwitchingNetwork(true);
 
-    try{
+    try {
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: CELO_TESTNET.chainId }],
@@ -395,7 +422,8 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         } catch (addError: any) {
           toast({
             title: "Network error",
-            description: addError.message || "Failed to add Celo Alfajores testnet",
+            description:
+              addError.message || "Failed to add Celo Alfajores testnet",
             variant: "destructive",
           });
         }

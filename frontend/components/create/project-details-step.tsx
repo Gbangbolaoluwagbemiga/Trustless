@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Coins } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -28,7 +28,7 @@ interface ProjectDetailsStepProps {
   };
   onUpdate: (data: Partial<ProjectDetailsStepProps["formData"]>) => void;
   isContractPaused: boolean;
-  whitelistedTokens?: { address: string; name?: string }[];
+  whitelistedTokens?: { address: string; name?: string; symbol?: string }[];
   errors?: {
     projectTitle?: string;
     projectDescription?: string;
@@ -195,7 +195,14 @@ export function ProjectDetailsStep({
 
           {!formData.useNativeToken && (
             <div>
-              <Label htmlFor="tokenSelect">Select Token *</Label>
+              <Label
+                htmlFor="tokenSelect"
+                className="flex items-center gap-1.5"
+              >
+                <Coins className="h-4 w-4 text-primary" />
+                Payment Token *
+              </Label>
+
               <Select
                 value={formData.token}
                 onValueChange={(value) => onUpdate({ token: value })}
@@ -208,18 +215,33 @@ export function ProjectDetailsStep({
                       : ""
                   }
                 >
-                  <SelectValue placeholder="Choose a whitelisted token..." />
+                  <SelectValue placeholder="Select a token..." />
                 </SelectTrigger>
                 <SelectContent>
                   {whitelistedTokens.length > 0 ? (
-                    whitelistedTokens.map((token) => (
-                      <SelectItem key={token.address} value={token.address}>
-                        {token.name ||
-                          `${token.address.slice(0, 6)}...${token.address.slice(
-                            -4
-                          )}`}
-                      </SelectItem>
-                    ))
+                    whitelistedTokens.map((token) => {
+                      const displayName = token.name || "Unknown Token";
+                      const displaySymbol = token.symbol || "???";
+                      const shortAddress = `${token.address.slice(
+                        0,
+                        6
+                      )}...${token.address.slice(-4)}`;
+
+                      return (
+                        <SelectItem key={token.address} value={token.address}>
+                          <span className="font-medium">{displayName}</span>
+                          {token.symbol && (
+                            <span className="font-normal">
+                              {" "}
+                              ({displaySymbol})
+                            </span>
+                          )}
+                          <span className="text-xs text-muted-foreground ml-2">
+                            {shortAddress}
+                          </span>
+                        </SelectItem>
+                      );
+                    })
                   ) : (
                     <SelectItem value="loading" disabled>
                       Loading tokens...
@@ -227,14 +249,14 @@ export function ProjectDetailsStep({
                   )}
                 </SelectContent>
               </Select>
+
               {errors.tokenAddress ? (
                 <p className="text-red-500 text-sm mt-1">
                   {errors.tokenAddress}
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Only tokens whitelisted by admin are available. Contact admin
-                  to add more tokens.
+                  Only admin-whitelisted tokens available
                 </p>
               )}
             </div>
