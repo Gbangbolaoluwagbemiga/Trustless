@@ -38,7 +38,12 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function AdminPage() {
   const { wallet, getContract } = useWeb3();
-  const { isAdmin, loading: adminLoading } = useAdminStatus();
+  const {
+    isAdmin,
+    isOwner,
+    isArbiter,
+    loading: adminLoading,
+  } = useAdminStatus();
   const { toast } = useToast();
   const [isPaused, setIsPaused] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -1066,7 +1071,30 @@ export default function AdminPage() {
     <div className="min-h-screen py-12">
       <div className="container mx-auto px-4 max-w-5xl">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+              {isOwner && (
+                <Badge variant="default" className="gap-1">
+                  <Shield className="h-3 w-3" />
+                  Owner
+                </Badge>
+              )}
+              {isArbiter && !isOwner && (
+                <Badge variant="secondary" className="gap-1">
+                  <Shield className="h-3 w-3" />
+                  Arbiter
+                </Badge>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {isOwner
+                ? "Full admin access - All functions available"
+                : isArbiter
+                ? "Arbiter access - Token management and dispute resolution"
+                : ""}
+            </p>
+          </div>
           <Button
             onClick={handleRefresh}
             disabled={isRefreshing}
@@ -1139,74 +1167,84 @@ export default function AdminPage() {
           <DisputeResolution onDisputeResolved={fetchContractStats} />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <Card className="glass border-primary/20 p-6">
-              <div className="flex items-start gap-4 mb-4">
-                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10">
+            {/* Pause/Unpause - Only for Owner */}
+            {isOwner && (
+              <Card className="glass border-primary/20 p-6">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10">
+                    {isPaused ? (
+                      <Play className="h-6 w-6 text-primary" />
+                    ) : (
+                      <Pause className="h-6 w-6 text-primary" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold mb-2">
+                      {isPaused ? "Unpause Contract" : "Pause Contract"}
+                    </h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {isPaused
+                        ? "Resume all escrow operations and allow users to interact with the contract"
+                        : "Temporarily halt all escrow operations for maintenance or emergency situations"}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => openDialog(isPaused ? "unpause" : "pause")}
+                  variant={isPaused ? "default" : "destructive"}
+                  className="w-full gap-2"
+                >
                   {isPaused ? (
-                    <Play className="h-6 w-6 text-primary" />
+                    <>
+                      <Play className="h-4 w-4" />
+                      Unpause Contract
+                    </>
                   ) : (
-                    <Pause className="h-6 w-6 text-primary" />
+                    <>
+                      <Pause className="h-4 w-4" />
+                      Pause Contract
+                    </>
                   )}
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold mb-2">
-                    {isPaused ? "Unpause Contract" : "Pause Contract"}
-                  </h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {isPaused
-                      ? "Resume all escrow operations and allow users to interact with the contract"
-                      : "Temporarily halt all escrow operations for maintenance or emergency situations"}
-                  </p>
-                </div>
-              </div>
-              <Button
-                onClick={() => openDialog(isPaused ? "unpause" : "pause")}
-                variant={isPaused ? "default" : "destructive"}
-                className="w-full gap-2"
-              >
-                {isPaused ? (
-                  <>
-                    <Play className="h-4 w-4" />
-                    Unpause Contract
-                  </>
-                ) : (
-                  <>
-                    <Pause className="h-4 w-4" />
-                    Pause Contract
-                  </>
-                )}
-              </Button>
-            </Card>
+                </Button>
+              </Card>
+            )}
 
-            <Card className="glass border-primary/20 p-6">
-              <div className="flex items-start gap-4 mb-4">
-                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-destructive/10">
-                  <Download className="h-6 w-6 text-destructive" />
+            {/* Withdraw Stuck Tokens - Only for Owner */}
+            {isOwner && (
+              <Card className="glass border-primary/20 p-6">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-destructive/10">
+                    <Download className="h-6 w-6 text-destructive" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold mb-2">
+                      Withdraw Stuck Tokens
+                    </h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Emergency function to withdraw tokens that may be stuck in
+                      the contract
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold mb-2">
-                    Withdraw Stuck Tokens
-                  </h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    Emergency function to withdraw tokens that may be stuck in
-                    the contract
-                  </p>
-                </div>
-              </div>
-              <Button
-                onClick={() => openDialog("withdraw")}
-                variant="destructive"
-                className="w-full gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Withdraw Tokens
-              </Button>
-            </Card>
+                <Button
+                  onClick={() => openDialog("withdraw")}
+                  variant="destructive"
+                  className="w-full gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Withdraw Tokens
+                </Button>
+              </Card>
+            )}
           </div>
 
           {/* Token Management & Arbiter Management - Side by Side */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-            {/* Token Management Section */}
+          <div
+            className={`grid grid-cols-1 ${
+              isOwner ? "lg:grid-cols-2" : "lg:grid-cols-1"
+            } gap-6 mt-6`}
+          >
+            {/* Token Management Section - Available to Owner and Arbiters */}
             <Card className="glass border-primary/20 p-6">
               <h2 className="text-2xl font-bold mb-6">Token Management</h2>
               <div className="space-y-4">
@@ -1261,61 +1299,63 @@ export default function AdminPage() {
               </div>
             </Card>
 
-            {/* Arbiter Management Section */}
-            <Card className="glass border-primary/20 p-6">
-              <h2 className="text-2xl font-bold mb-6">Arbiter Management</h2>
-              <div className="space-y-4">
+            {/* Arbiter Management Section - Only for Owner */}
+            {isOwner && (
+              <Card className="glass border-primary/20 p-6">
+                <h2 className="text-2xl font-bold mb-6">Arbiter Management</h2>
                 <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="arbiterAddress" className="mb-2 block">
-                      Arbiter Address
-                    </Label>
-                    <Input
-                      id="arbiterAddress"
-                      placeholder="0x..."
-                      value={arbiterAddress}
-                      onChange={(e) => setArbiterAddress(e.target.value)}
-                      className="font-mono"
-                      disabled={isAuthorizing}
-                    />
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Authorize an arbiter address. Only authorized arbiters can
-                      be used in escrows.
-                    </p>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="arbiterAddress" className="mb-2 block">
+                        Arbiter Address
+                      </Label>
+                      <Input
+                        id="arbiterAddress"
+                        placeholder="0x..."
+                        value={arbiterAddress}
+                        onChange={(e) => setArbiterAddress(e.target.value)}
+                        className="font-mono"
+                        disabled={isAuthorizing}
+                      />
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Authorize an arbiter address. Only authorized arbiters
+                        can be used in escrows.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={handleAuthorizeArbiter}
+                      disabled={isAuthorizing || !arbiterAddress}
+                      className="gap-2 w-full"
+                    >
+                      {isAuthorizing ? (
+                        <>
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          Authorizing...
+                        </>
+                      ) : (
+                        <>
+                          <Shield className="h-4 w-4" />
+                          Authorize Arbiter
+                        </>
+                      )}
+                    </Button>
                   </div>
-                  <Button
-                    onClick={handleAuthorizeArbiter}
-                    disabled={isAuthorizing || !arbiterAddress}
-                    className="gap-2 w-full"
-                  >
-                    {isAuthorizing ? (
-                      <>
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                        Authorizing...
-                      </>
-                    ) : (
-                      <>
-                        <Shield className="h-4 w-4" />
-                        Authorize Arbiter
-                      </>
-                    )}
-                  </Button>
+                  <div className="pt-4 border-t border-muted/50">
+                    <p className="text-sm font-semibold mb-2">Quick Actions:</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setArbiterAddress(wallet.address || "")}
+                      className="gap-2 w-full"
+                      disabled={!wallet.address}
+                    >
+                      <Shield className="h-3 w-3" />
+                      Authorize Default Arbiter (Your Wallet)
+                    </Button>
+                  </div>
                 </div>
-                <div className="pt-4 border-t border-muted/50">
-                  <p className="text-sm font-semibold mb-2">Quick Actions:</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setArbiterAddress(wallet.address || "")}
-                    className="gap-2 w-full"
-                    disabled={!wallet.address}
-                  >
-                    <Shield className="h-3 w-3" />
-                    Authorize Default Arbiter (Your Wallet)
-                  </Button>
-                </div>
-              </div>
-            </Card>
+              </Card>
+            )}
           </div>
 
           <Card className="glass border-primary/20 p-6">

@@ -238,6 +238,15 @@ export default function FreelancerPage() {
               }
 
               // Convert contract data to our Escrow type
+              const statusFromContract = getStatusFromNumber(
+                Number(escrowSummary[3])
+              );
+              // Normalize status: map "Released" to "completed" for consistency
+              const normalizedStatus =
+                statusFromContract.toLowerCase() === "released"
+                  ? "completed"
+                  : statusFromContract.toLowerCase();
+
               const escrow: Escrow = {
                 id: i.toString(),
                 payer: escrowSummary[0], // depositor
@@ -245,7 +254,11 @@ export default function FreelancerPage() {
                 token: escrowSummary[7], // token
                 totalAmount: escrowSummary[4].toString(), // totalAmount
                 releasedAmount: escrowSummary[5].toString(), // paidAmount
-                status: getStatusFromNumber(Number(escrowSummary[3])), // status
+                status: normalizedStatus as
+                  | "pending"
+                  | "active"
+                  | "completed"
+                  | "disputed", // status
                 createdAt: Number(escrowSummary[10]) * 1000, // createdAt (convert to milliseconds)
                 duration: Number(escrowSummary[8]) - Number(escrowSummary[10]), // deadline - createdAt (in seconds)
                 milestones: allMilestones.map((m: any, index: number) => {
@@ -450,10 +463,12 @@ export default function FreelancerPage() {
 
       setEscrows(freelancerEscrows);
 
-      // Fetch ratings for completed escrows
+      // Fetch ratings for completed/released escrows
       const ratings: Record<string, { rating: number; exists: boolean }> = {};
       for (const escrow of freelancerEscrows) {
-        if (escrow.status === "completed") {
+        // Check for both "completed" and "released" status (case-insensitive)
+        const statusLower = escrow.status.toLowerCase();
+        if (statusLower === "completed" || statusLower === "released") {
           try {
             const ratingData = await contract.call(
               "getEscrowRating",
@@ -1426,8 +1441,9 @@ export default function FreelancerPage() {
                             </p>
                           </div>
                         </div>
-                        {/* Client Rating Box - Only for completed projects */}
-                        {escrow.status === "completed" && (
+                        {/* Client Rating Box - Only for completed/released projects */}
+                        {(escrow.status.toLowerCase() === "completed" ||
+                          escrow.status.toLowerCase() === "released") && (
                           <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
                             <Star className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
                             <div className="flex-1">
@@ -1920,39 +1936,6 @@ export default function FreelancerPage() {
                           );
                         })()}
                       </div>
-
-                      {/* Rating Display for Completed Escrows */}
-                      {escrow.status === "completed" && (
-                        <div className="mt-6 p-4 bg-muted/20 rounded-lg border">
-                          <h4 className="font-medium mb-2">Client Rating</h4>
-                          {escrowRatings[escrow.id]?.exists ? (
-                            <div className="flex items-center gap-2">
-                              <div className="flex items-center gap-1">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <Star
-                                    key={star}
-                                    className={`h-5 w-5 ${
-                                      star <= escrowRatings[escrow.id].rating
-                                        ? "fill-yellow-400 text-yellow-400"
-                                        : "text-gray-300"
-                                    }`}
-                                  />
-                                ))}
-                              </div>
-                              <span className="text-sm font-semibold">
-                                {escrowRatings[escrow.id].rating}/5
-                              </span>
-                              <span className="text-sm text-muted-foreground">
-                                - Rated by client
-                              </span>
-                            </div>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">
-                              Waiting for client rating...
-                            </p>
-                          )}
-                        </div>
-                      )}
 
                       {/* Actions */}
                       <div className="flex gap-3">
