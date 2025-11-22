@@ -17,6 +17,11 @@ import { JobsStats } from "@/components/jobs/jobs-stats";
 import { JobCard } from "@/components/jobs/job-card";
 import { ApplicationDialog } from "@/components/jobs/application-dialog";
 import { JobsLoading } from "@/components/jobs/jobs-loading";
+import {
+  FilterSortControls,
+  type FilterStatus,
+  type SortOption,
+} from "@/components/dashboard/filter-sort-controls";
 
 export default function JobsPage() {
   const { wallet, getContract } = useWeb3();
@@ -25,6 +30,8 @@ export default function JobsPage() {
   const [jobs, setJobs] = useState<Escrow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
+  const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [selectedJob, setSelectedJob] = useState<Escrow | null>(null);
   const [coverLetter, setCoverLetter] = useState("");
   const [proposedTimeline, setProposedTimeline] = useState("");
@@ -545,15 +552,74 @@ export default function JobsPage() {
     }
   };
 
-  const filteredJobs = jobs.filter(
-    (job) =>
-      job.projectDescription
-        ?.toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      job.milestones.some((m) =>
-        m.description.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-  );
+  // Filter and sort jobs
+  const getFilteredAndSortedJobs = () => {
+    let filtered = [...jobs];
+
+    // Apply search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (job) =>
+          job.projectTitle?.toLowerCase().includes(query) ||
+          job.projectDescription?.toLowerCase().includes(query) ||
+          job.milestones.some((m) =>
+            m.description.toLowerCase().includes(query)
+          )
+      );
+    }
+
+    // Apply status filter
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((job) => {
+        const status = job.status.toLowerCase();
+        return status === statusFilter.toLowerCase();
+      });
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortOption) {
+        case "newest":
+          return b.createdAt - a.createdAt;
+        case "oldest":
+          return a.createdAt - b.createdAt;
+        case "amount-high":
+          return (
+            Number.parseFloat(b.totalAmount) - Number.parseFloat(a.totalAmount)
+          );
+        case "amount-low":
+          return (
+            Number.parseFloat(a.totalAmount) - Number.parseFloat(b.totalAmount)
+          );
+        case "status":
+          const statusOrder: Record<string, number> = {
+            pending: 0,
+            active: 1,
+            completed: 2,
+            disputed: 3,
+          };
+          return (
+            (statusOrder[a.status.toLowerCase()] ?? 99) -
+            (statusOrder[b.status.toLowerCase()] ?? 99)
+          );
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  };
+
+  const filteredJobs = getFilteredAndSortedJobs();
+  const activeFiltersCount =
+    (statusFilter !== "all" ? 1 : 0) + (searchQuery.trim() ? 1 : 0);
+
+  const handleClearFilters = () => {
+    setStatusFilter("all");
+    setSearchQuery("");
+    setSortOption("newest");
+  };
 
   if (!wallet.isConnected || loading) {
     return <JobsLoading isConnected={wallet.isConnected} />;
@@ -562,13 +628,20 @@ export default function JobsPage() {
   return (
     <div className="min-h-screen py-12">
       <div className="container mx-auto px-4">
-        <JobsHeader
+        <JobsHeader onRefresh={handleRefresh} refreshing={refreshing} />
+        <JobsStats jobs={jobs} ongoingProjectsCount={ongoingProjectsCount} />
+
+        {/* Filter and Sort Controls */}
+        <FilterSortControls
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          sortOption={sortOption}
+          onSortChange={setSortOption}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onRefresh={handleRefresh}
-          refreshing={refreshing}
+          onClearFilters={handleClearFilters}
+          activeFiltersCount={activeFiltersCount}
         />
-        <JobsStats jobs={jobs} ongoingProjectsCount={ongoingProjectsCount} />
 
         {/* Jobs List */}
         <div className="space-y-6">
