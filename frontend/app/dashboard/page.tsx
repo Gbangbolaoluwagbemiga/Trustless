@@ -28,6 +28,11 @@ import { DashboardStats } from "@/components/dashboard/dashboard-stats";
 import { EscrowCard } from "@/components/dashboard/escrow-card";
 import { DashboardLoading } from "@/components/dashboard/dashboard-loading";
 import { RateFreelancer } from "@/components/rating-freelancer";
+import {
+  FilterSortControls,
+  type FilterStatus,
+  type SortOption,
+} from "@/components/dashboard/filter-sort-controls";
 
 export default function DashboardPage() {
   const { wallet, getContract } = useWeb3();
@@ -43,6 +48,9 @@ export default function DashboardPage() {
     Record<string, { rating: number; exists: boolean }>
   >({});
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
+  const [sortOption, setSortOption] = useState<SortOption>("newest");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const getStatusFromNumber = (status: number): string => {
     switch (status) {
@@ -578,9 +586,70 @@ export default function DashboardPage() {
     }
   };
 
-  const filterEscrows = (filter: string) => {
-    if (filter === "all") return escrows;
-    return escrows.filter((e) => e.status === filter);
+  // Filter and sort escrows
+  const getFilteredAndSortedEscrows = () => {
+    let filtered = [...escrows];
+
+    // Apply status filter
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((e) => {
+        const status = e.status.toLowerCase();
+        return status === statusFilter.toLowerCase();
+      });
+    }
+
+    // Apply search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((e) => {
+        const title = (e.projectTitle || "").toLowerCase();
+        const description = (e.projectDescription || "").toLowerCase();
+        return title.includes(query) || description.includes(query);
+      });
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortOption) {
+        case "newest":
+          return b.createdAt - a.createdAt;
+        case "oldest":
+          return a.createdAt - b.createdAt;
+        case "amount-high":
+          return (
+            Number.parseFloat(b.totalAmount) - Number.parseFloat(a.totalAmount)
+          );
+        case "amount-low":
+          return (
+            Number.parseFloat(a.totalAmount) - Number.parseFloat(b.totalAmount)
+          );
+        case "status":
+          const statusOrder: Record<string, number> = {
+            pending: 0,
+            active: 1,
+            completed: 2,
+            disputed: 3,
+          };
+          return (
+            (statusOrder[a.status.toLowerCase()] ?? 99) -
+            (statusOrder[b.status.toLowerCase()] ?? 99)
+          );
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  };
+
+  const filteredEscrows = getFilteredAndSortedEscrows();
+  const activeFiltersCount =
+    (statusFilter !== "all" ? 1 : 0) + (searchQuery.trim() ? 1 : 0);
+
+  const handleClearFilters = () => {
+    setStatusFilter("all");
+    setSearchQuery("");
+    setSortOption("newest");
   };
 
   const disputeMilestone = async (escrowId: string, milestoneIndex: number) => {
@@ -964,46 +1033,69 @@ export default function DashboardPage() {
             </p>
           </Card>
         ) : (
-          <div className="space-y-6">
-            {escrows.map((escrow, index) => {
-              const rating = escrowRatings[escrow.id];
-              return (
-                <EscrowCard
-                  key={escrow.id}
-                  escrow={escrow}
-                  index={index}
-                  expandedEscrow={expandedEscrow}
-                  submittingMilestone={
-                    submittingMilestone === escrow.id ? "true" : "false"
-                  }
-                  onToggleExpanded={() =>
-                    setExpandedEscrow(
-                      expandedEscrow === escrow.id ? null : escrow.id
-                    )
-                  }
-                  onApproveMilestone={approveMilestone}
-                  onRejectMilestone={(
-                    escrowId: string,
-                    milestoneIndex: number
-                  ) => {
-                    // For now, use empty reason - this should be handled by the component
-                    rejectMilestone(
-                      escrowId,
-                      milestoneIndex,
-                      "No reason provided"
-                    );
-                  }}
-                  onDisputeMilestone={disputeMilestone}
-                  onStartWork={startWork}
-                  onDispute={openDispute}
-                  calculateDaysLeft={calculateDaysLeft}
-                  getDaysLeftMessage={getDaysLeftMessage}
-                  rating={rating}
-                  onRatingSubmitted={() => fetchUserEscrows()}
-                />
-              );
-            })}
-          </div>
+          <>
+            <FilterSortControls
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+              sortOption={sortOption}
+              onSortChange={setSortOption}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onClearFilters={handleClearFilters}
+              activeFiltersCount={activeFiltersCount}
+            />
+
+            {filteredEscrows.length === 0 ? (
+              <Card className="glass border-muted p-12 text-center">
+                <FileText className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <h3 className="text-xl font-bold mb-2">No Results Found</h3>
+                <p className="text-muted-foreground">
+                  Try adjusting your filters or search query.
+                </p>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {filteredEscrows.map((escrow, index) => {
+                  const rating = escrowRatings[escrow.id];
+                  return (
+                    <EscrowCard
+                      key={escrow.id}
+                      escrow={escrow}
+                      index={index}
+                      expandedEscrow={expandedEscrow}
+                      submittingMilestone={
+                        submittingMilestone === escrow.id ? "true" : "false"
+                      }
+                      onToggleExpanded={() =>
+                        setExpandedEscrow(
+                          expandedEscrow === escrow.id ? null : escrow.id
+                        )
+                      }
+                      onApproveMilestone={approveMilestone}
+                      onRejectMilestone={(
+                        escrowId: string,
+                        milestoneIndex: number
+                      ) => {
+                        // For now, use empty reason - this should be handled by the component
+                        rejectMilestone(
+                          escrowId,
+                          milestoneIndex,
+                          "No reason provided"
+                        );
+                      }}
+                      onDisputeMilestone={disputeMilestone}
+                      onStartWork={startWork}
+                      onDispute={openDispute}
+                      calculateDaysLeft={calculateDaysLeft}
+                      getDaysLeftMessage={getDaysLeftMessage}
+                      rating={rating}
+                      onRatingSubmitted={() => fetchUserEscrows()}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
