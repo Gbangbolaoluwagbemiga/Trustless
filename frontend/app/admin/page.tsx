@@ -315,7 +315,7 @@ export default function AdminPage() {
         const { ethers } = await import("ethers");
 
         // Try multiple RPC endpoints with fallback
-        let provider: ethers.JsonRpcProvider | null = null;
+        let provider: any = null;
         let events: any[] = [];
         let lastError: any = null;
 
@@ -494,7 +494,9 @@ export default function AdminPage() {
           }
         });
 
-        allWhitelistedTokensFromEvents = Array.from(tokenAddresses).map((t) => t.toLowerCase());
+        allWhitelistedTokensFromEvents = Array.from(tokenAddresses).map((t) =>
+          t.toLowerCase()
+        );
         console.log(
           "📋 Found whitelisted tokens from events:",
           allWhitelistedTokensFromEvents.length,
@@ -523,7 +525,11 @@ export default function AdminPage() {
           token && token !== "0x0000000000000000000000000000000000000000"
       );
 
-      console.log("🔍 Verifying all tokens from events:", allTokensToVerify.length, allTokensToVerify);
+      console.log(
+        "🔍 Verifying all tokens from events:",
+        allTokensToVerify.length,
+        allTokensToVerify
+      );
 
       verifiedTokens = [];
       for (const token of allTokensToVerify) {
@@ -553,8 +559,12 @@ export default function AdminPage() {
         }
       }
 
-      console.log("✅ Final verified whitelisted tokens:", verifiedTokens.length, verifiedTokens);
-      
+      console.log(
+        "✅ Final verified whitelisted tokens:",
+        verifiedTokens.length,
+        verifiedTokens
+      );
+
       // Update known list
       if (verifiedTokens.length > 0) {
         setKnownWhitelistedTokens(verifiedTokens);
@@ -566,7 +576,7 @@ export default function AdminPage() {
         const { ethers } = await import("ethers");
 
         // Try multiple RPC endpoints with fallback
-        let provider: ethers.JsonRpcProvider | null = null;
+        let provider: any = null;
         let arbiterEvents: any[] = [];
         let lastError: any = null;
 
@@ -747,7 +757,9 @@ export default function AdminPage() {
           }
         });
 
-        allAuthorizedArbitersFromEvents = Array.from(arbiterAddresses).map((a) => a.toLowerCase());
+        allAuthorizedArbitersFromEvents = Array.from(arbiterAddresses).map(
+          (a) => a.toLowerCase()
+        );
         console.log(
           "📋 Found authorized arbiters from events:",
           allAuthorizedArbitersFromEvents.length,
@@ -773,7 +785,11 @@ export default function AdminPage() {
         ]),
       ].filter((a) => a && a !== "0x0000000000000000000000000000000000000000");
 
-      console.log("🔍 Verifying all arbiters from events:", allArbitersToVerify.length, allArbitersToVerify);
+      console.log(
+        "🔍 Verifying all arbiters from events:",
+        allArbitersToVerify.length,
+        allArbitersToVerify
+      );
 
       verifiedArbiters = [];
       for (const arbiter of allArbitersToVerify) {
@@ -794,13 +810,16 @@ export default function AdminPage() {
           } else {
             isAuthorized = Boolean(result);
           }
-          
+
           // Owner is always authorized
           if (arbiter === contractOwnerLower) {
             isAuthorized = true;
           }
-          
-          if (isAuthorized && !verifiedArbiters.includes(arbiter.toLowerCase())) {
+
+          if (
+            isAuthorized &&
+            !verifiedArbiters.includes(arbiter.toLowerCase())
+          ) {
             verifiedArbiters.push(arbiter.toLowerCase());
             console.log(`✅ Verified authorized arbiter: ${arbiter}`);
           }
@@ -809,13 +828,16 @@ export default function AdminPage() {
         }
       }
 
-      console.log("✅ Final verified authorized arbiters:", verifiedArbiters.length, verifiedArbiters);
-      
+      console.log(
+        "✅ Final verified authorized arbiters:",
+        verifiedArbiters.length,
+        verifiedArbiters
+      );
+
       // Update known list
       if (verifiedArbiters.length > 0) {
         setKnownAuthorizedArbiters(verifiedArbiters);
       }
-
 
       // Use verified results from event queries + direct checks
       // These are the actual verified counts from contract calls
