@@ -62,11 +62,15 @@ abstract contract RatingSystem is EscrowCore {
         EscrowData storage e = escrows[escrowId];
         require(e.status == EscrowStatus.Released, "Escrow not completed");
         require(msg.sender == e.depositor, "Only client can rate");
+        require(selfVerifiedUsers[msg.sender], "Identity verification required to rate");
         require(e.beneficiary != address(0), "No freelancer assigned");
         require(rating >= 1 && rating <= 5, "Rating must be 1-5");
         require(!escrowRatings[escrowId].exists, "Already rated");
         
         address freelancer = e.beneficiary;
+        
+        // Only accumulate reputation for verified freelancers (prevents Sybil attacks)
+        bool isFreelancerVerified = selfVerifiedUsers[freelancer];
         FreelancerRating storage fr = freelancerRatings[freelancer];
         
         // Update rating
@@ -88,8 +92,10 @@ abstract contract RatingSystem is EscrowCore {
         
         emit FreelancerRated(escrowId, freelancer, msg.sender, rating, fr.averageRating);
         
-        // Check if freelancer should mint NFT badge
-        _checkAndMintBadge(freelancer);
+        // Only check for badge minting if freelancer is verified (prevents Sybil attacks)
+        if (isFreelancerVerified) {
+            _checkAndMintBadge(freelancer);
+        }
     }
     
     /**

@@ -109,4 +109,33 @@ abstract contract AdminFunctions is EscrowCore {
     function unpause() external onlyOwner {
         _unpause();
     }
+
+    // ===== Self Protocol Verification Functions =====
+    
+    /**
+     * @dev Mark a user as verified by Self Protocol
+     * @param user The user address to verify
+     * @notice Can only be called by owner or verified backend service
+     */
+    function verifyUserIdentity(address user) external onlyOwnerOrArbiter {
+        require(user != address(0), "Invalid user address");
+        require(!selfVerifiedUsers[user], "User already verified");
+        
+        selfVerifiedUsers[user] = true;
+        verificationTimestamp[user] = block.timestamp;
+        
+        emit UserVerified(user, block.timestamp);
+    }
+
+    /**
+     * @dev Revoke user verification (for fraud cases)
+     * @param user The user address to revoke verification from
+     */
+    function revokeUserVerification(address user) external onlyOwner {
+        require(user != address(0), "Invalid user address");
+        require(selfVerifiedUsers[user], "User not verified");
+        
+        selfVerifiedUsers[user] = false;
+        verificationTimestamp[user] = 0;
+    }
 }

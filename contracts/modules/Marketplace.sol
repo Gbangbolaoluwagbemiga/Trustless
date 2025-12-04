@@ -18,6 +18,7 @@ abstract contract Marketplace is EscrowCore {
         EscrowData storage e = escrows[escrowId];
         require(e.isOpenJob, "Not an open job");
         require(e.status == EscrowStatus.Pending, "Job closed");
+        require(selfVerifiedUsers[msg.sender], "Identity verification required");
         require(!hasApplied[escrowId][msg.sender], "Already applied");
         require(
             escrowApplications[escrowId].length < MAX_APPLICATIONS, 

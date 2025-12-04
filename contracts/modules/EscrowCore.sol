@@ -53,6 +53,10 @@ abstract contract EscrowCore is ReentrancyGuard, Ownable, Pausable, ISecureFlow 
     mapping(address => uint256) public reputation;
     mapping(address => uint256) public completedEscrows;
 
+    // Self Protocol Verification
+    mapping(address => bool) public selfVerifiedUsers;
+    mapping(address => uint256) public verificationTimestamp;
+
     // ===== Modifiers =====
     modifier onlyEscrowParticipant(uint256 escrowId) {
         EscrowData storage e = escrows[escrowId];
@@ -145,7 +149,8 @@ abstract contract EscrowCore is ReentrancyGuard, Ownable, Pausable, ISecureFlow 
     }
 
     function _updateReputation(address user, uint256 points, string memory reason) internal {
-        if (user != address(0)) {
+        // Only update reputation for verified users to prevent Sybil attacks
+        if (user != address(0) && selfVerifiedUsers[user]) {
             reputation[user] += points;
             emit ReputationUpdated(user, reputation[user], reason);
         }
