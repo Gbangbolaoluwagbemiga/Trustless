@@ -13,7 +13,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Shield, AlertCircle } from "lucide-react";
 import type { Escrow } from "@/lib/web3/types";
+import { useSelfVerification } from "@/contexts/self-verification-context";
+import { SelfVerificationDialog } from "@/components/self/self-verification-dialog";
 
 interface ApplicationDialogProps {
   job: Escrow | null;
@@ -32,8 +36,15 @@ export function ApplicationDialog({
 }: ApplicationDialogProps) {
   const [coverLetter, setCoverLetter] = useState("");
   const [proposedTimeline, setProposedTimeline] = useState("");
+  const [showVerificationDialog, setShowVerificationDialog] = useState(false);
+  const { isVerified } = useSelfVerification();
 
   const handleSubmit = () => {
+    if (!isVerified) {
+      setShowVerificationDialog(true);
+      return;
+    }
+
     if (job && coverLetter.trim() && proposedTimeline.trim()) {
       onApply(job, coverLetter, proposedTimeline);
       setCoverLetter("");
@@ -54,6 +65,27 @@ export function ApplicationDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {!isVerified && (
+            <Alert className="border-orange-500 bg-orange-50 dark:bg-orange-950">
+              <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+              <AlertDescription className="text-orange-800 dark:text-orange-200">
+                <div className="font-semibold">Identity verification required</div>
+                <div className="text-sm mt-1">
+                  You need to verify your identity before applying to jobs. This helps prevent fraud and ensures a trusted platform.
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => setShowVerificationDialog(true)}
+                >
+                  <Shield className="w-3 h-3 mr-2" />
+                  Verify Identity
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div>
             <Label htmlFor="coverLetter">Cover Letter *</Label>
             <Textarea
@@ -87,13 +119,19 @@ export function ApplicationDialog({
           <Button
             onClick={handleSubmit}
             disabled={
-              applying || !coverLetter.trim() || !proposedTimeline.trim()
+              applying || !coverLetter.trim() || !proposedTimeline.trim() || !isVerified
             }
           >
             {applying ? "Applying..." : "Submit Application"}
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <SelfVerificationDialog
+        open={showVerificationDialog}
+        onOpenChange={setShowVerificationDialog}
+        required={true}
+      />
     </Dialog>
   );
 }

@@ -128,6 +128,7 @@ interface ISecureFlow {
     event ReputationUpdated(address indexed user, uint256 newReputation, string reason);
     event JobCreationPaused();
     event JobCreationUnpaused();
+    event UserVerified(address indexed user, uint256 timestamp);
 
     // ===== Core Functions =====
     function createEscrow(

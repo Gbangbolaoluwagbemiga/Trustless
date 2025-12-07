@@ -366,4 +366,3 @@ After integration, SecureFlow will have:
 3. Set up Self Protocol SDK in frontend
 4. Plan smart contract modifications
 5. Test integration thoroughly
-
