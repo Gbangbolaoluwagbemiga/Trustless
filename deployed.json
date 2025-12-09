@@ -3,7 +3,7 @@
   "chainId": "42220",
   "deployer": "0x3Be7fbBDbC73Fc4731D60EF09c4BA1A94DC58E41",
   "contracts": {
-    "SecureFlow": "0x1173Bcc9183f29aFbB6f4C7E3c0b25476D3daF0F",
+    "SecureFlow": "0x067FDA1ED957BB352679cbc840Ce6329E470fd07",
     "Token": "0x765DE816845861e75A25fCA122bb6898B8B1282a"
   },
   "features": [
@@ -17,7 +17,7 @@
     "🛡️ ANTI-GAMING - Minimum value thresholds",
     "📈 SCALABLE - Gas optimized modular design"
   ],
-  "deploymentTime": "2025-11-21T12:37:48.513Z",
+  "deploymentTime": "2025-12-09T09:50:20.247Z",
   "abi": [
     "constructor(address,address,uint256)",
     "event ApplicationSubmitted(uint256 indexed,address indexed,string,uint256)",
@@ -50,6 +50,7 @@
     "event TokenBlacklisted(address indexed)",
     "event TokenWhitelisted(address indexed)",
     "event Unpaused(address)",
+    "event UserVerified(address indexed,uint256)",
     "event WorkStarted(uint256 indexed,address indexed,uint256)",
     "fallback() payable",
     "function BEGINNER_THRESHOLD() view returns (uint256)",
@@ -117,6 +118,8 @@
     "function resolveDispute(uint256,uint256,uint256,string)",
     "function resubmitMilestone(uint256,uint256,string)",
     "function revokeArbiter(address)",
+    "function revokeUserVerification(address)",
+    "function selfVerifiedUsers(address) view returns (bool)",
     "function setFeeCollector(address)",
     "function setPlatformFeeBP(uint256)",
     "function startWork(uint256)",
@@ -126,6 +129,8 @@
     "function unpause()",
     "function unpauseJobCreation()",
     "function userEscrows(address,uint256) view returns (uint256)",
+    "function verificationTimestamp(address) view returns (uint256)",
+    "function verifyUserIdentity(address)",
     "function whitelistToken(address)",
     "function whitelistedTokens(address) view returns (bool)",
     "function withdrawFees(address)",
