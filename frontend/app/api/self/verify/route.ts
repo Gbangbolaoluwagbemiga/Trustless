@@ -1,20 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SelfBackendVerifier } from "@selfxyz/core";
 import { CONTRACTS } from "@/lib/web3/config";
 import { SECUREFLOW_ABI } from "@/lib/web3/abis";
 import { ethers } from "ethers";
 
-// Initialize Self Protocol Backend Verifier
-// Note: Self Protocol doesn't use a central API endpoint
-// The verifier validates proofs locally using the Self Protocol SDK
-const verifier = new SelfBackendVerifier(
-  "secureflow-identity", // Your app scope
-  "", // Self Protocol doesn't require an API endpoint - proofs are verified locally
-  process.env.NODE_ENV === "development", // devMode
-  new Map(), // allowedIds - configure based on your needs
-  null as any, // configStorage - implement based on Self Protocol docs
-  "hex" // identifier type - using 'hex' since we use wallet addresses
-);
+// Lazy-load Self Protocol Verifier to avoid build-time issues
+let verifier: any = null;
+let verifierError: Error | null = null;
+
+async function getVerifier() {
+  if (verifier) return verifier;
+  if (verifierError) throw verifierError;
+  
+  try {
+    // Dynamic import to avoid build-time issues
+    const { SelfBackendVerifier } = await import("@selfxyz/core");
+    
+    verifier = new SelfBackendVerifier(
+      "secureflow-identity", // Your app scope
+      "", // Self Protocol doesn't require an API endpoint - proofs are verified locally
+      process.env.NODE_ENV === "development", // devMode
+      new Map(), // allowedIds - configure based on your needs
+      null as any, // configStorage - implement based on Self Protocol docs
+      "hex" // identifier type - using 'hex' since we use wallet addresses
+    );
+    
+    return verifier;
+  } catch (error: any) {
+    verifierError = error;
+    throw error;
+  }
+}
 
 // Get Celo RPC provider
 function getProvider() {
@@ -43,7 +58,8 @@ export async function POST(request: NextRequest) {
 
     // Verify the proof using Self Protocol
     try {
-      const verificationResult = await verifier.verify(
+      const selfVerifier = await getVerifier();
+      const verificationResult = await selfVerifier.verify(
         proof.attestationId || "humanity", // Default to humanity verification
         proof,
         pubSignals,
