@@ -5,14 +5,15 @@ import { SECUREFLOW_ABI } from "@/lib/web3/abis";
 import { ethers } from "ethers";
 
 // Initialize Self Protocol Backend Verifier
-// Note: You'll need to configure this with your actual app scope and config storage
+// Note: Self Protocol doesn't use a central API endpoint
+// The verifier validates proofs locally using the Self Protocol SDK
 const verifier = new SelfBackendVerifier(
   "secureflow-identity", // Your app scope
-  process.env.SELF_ENDPOINT || "https://api.self.xyz", // Self Protocol API endpoint
+  "", // Self Protocol doesn't require an API endpoint - proofs are verified locally
   process.env.NODE_ENV === "development", // devMode
   new Map(), // allowedIds - configure based on your needs
   null as any, // configStorage - implement based on Self Protocol docs
-  "uuid" // identifier type
+  "hex" // identifier type - using 'hex' since we use wallet addresses
 );
 
 // Get Celo RPC provider

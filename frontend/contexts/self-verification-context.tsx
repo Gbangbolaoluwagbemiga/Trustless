@@ -32,37 +32,68 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
 
   // Initialize Self App on mount
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      // Skip Self Protocol initialization on localhost (not supported)
-      const isLocalhost = window.location.hostname === "localhost" || 
-                         window.location.hostname === "127.0.0.1" ||
-                         window.location.hostname === "";
-      
-      if (isLocalhost) {
-        console.warn("Self Protocol is disabled on localhost. It will work in production.");
-        return;
-      }
+    if (typeof window === "undefined") {
+      return; // Skip on server-side
+    }
 
-      try {
-        const app = new SelfAppBuilder({
-          appName: "SecureFlow",
-          scope: "secureflow-identity", // Unique scope for your app
-          endpoint: `${window.location.origin}/api/self/verify`,
-          userId: wallet.address || ethers.ZeroAddress,
-          version: 2,
-          disclosures: {
-            // Request humanity verification (unique human check)
-            humanity: true,
-            // You can add more disclosures as needed
-          },
-        }).build();
-        
-        setSelfApp(app);
-      } catch (error) {
-        console.error("Failed to initialize Self App:", error);
+    // Skip Self Protocol initialization on localhost (not supported)
+    const isLocalhost = window.location.hostname === "localhost" || 
+                       window.location.hostname === "127.0.0.1" ||
+                       window.location.hostname === "";
+    
+    if (isLocalhost) {
+      console.warn("Self Protocol is disabled on localhost. It will work in production.");
+      return;
+    }
+
+    // Only initialize if wallet is connected with a valid address
+    // Self Protocol requires a valid address (not zero address) or UUID
+    if (!wallet.isConnected || !wallet.address) {
+      // Don't initialize until wallet is connected
+      setSelfApp(null);
+      return;
+    }
+
+    // Validate address format
+    if (!ethers.isAddress(wallet.address) || wallet.address === ethers.ZeroAddress) {
+      console.warn("Invalid wallet address for Self Protocol:", wallet.address);
+      setSelfApp(null);
+      return;
+    }
+
+    try {
+      // According to Self Protocol docs: https://docs.self.xyz/frontend-integration/qrcode-sdk-api-reference
+      // Required fields: appName, logoBase64, endpointType, endpoint, scope, userId, userIdType, disclosures
+      const app = new SelfAppBuilder({
+        appName: "SecureFlow",
+        logoBase64: `${window.location.origin}/secureflow-logo.svg`, // Logo URL (can be URL or base64)
+        endpointType: 'https', // 'https' for backend verification, 'celo' for on-chain
+        endpoint: `${window.location.origin}/api/self/verify`, // Backend API endpoint
+        scope: "secureflow-identity", // Unique scope for your app
+        userId: wallet.address.toLowerCase(), // Use connected wallet address (lowercase for consistency)
+        userIdType: 'hex', // Address is hex format
+        version: 2,
+        disclosures: {
+          // Request minimum age verification (18+) - ensures user is a real person
+          minimumAge: 18,
+          // You can add more disclosures as needed:
+          // issuing_state: false,
+          // name: false,
+          // date_of_birth: false,
+          // nationality: false,
+        },
+      }).build();
+      
+      setSelfApp(app);
+    } catch (error: any) {
+      console.error("Failed to initialize Self App:", error);
+      setSelfApp(null);
+      // Don't show error to user if it's just a missing wallet
+      if (error.message && !error.message.includes("userId")) {
+        console.error("Self Protocol initialization error details:", error);
       }
     }
-  }, [wallet.address]);
+  }, [wallet.address, wallet.isConnected]);
 
   // Check verification status from contract
   const checkVerificationStatus = async () => {
