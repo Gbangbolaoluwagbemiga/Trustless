@@ -76,8 +76,12 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
         userId: wallet.address.toLowerCase(), // Use connected wallet address (lowercase for consistency)
         userIdType: 'hex', // Address is hex format
         version: 2,
-        // Omit disclosures field entirely - let Self Protocol use default behavior
-        // This should trigger basic passport/ID verification without specific disclosure requirements
+        // disclosures field is REQUIRED - specifies what to verify
+        // humanity: true requests proof that the user is human (basic identity check)
+        // This is the simplest disclosure type that works with passport/ID verification
+        disclosures: {
+          humanity: true,
+        },
       }).build();
       
       setSelfApp(app);
