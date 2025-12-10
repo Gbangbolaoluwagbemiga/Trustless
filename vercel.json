@@ -5,5 +5,8 @@
   "installCommand": "cd frontend && npm install",
   "framework": null,
   "devCommand": "cd frontend && npm run dev",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./frontend/"
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./frontend/",
+  "env": {
+    "NEXT_TELEMETRY_DISABLED": "1"
+  }
 }

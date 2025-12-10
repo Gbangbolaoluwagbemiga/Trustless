@@ -1,10 +1,10 @@
 {
   "name": "secureflow-frontend",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
-  "packageManager": "pnpm@10.18.2",
   "engines": {
-    "node": ">=22 <23"
+    "node": ">=22 <23",
+    "npm": ">=10"
   },
   "scripts": {
     "build": "next build",

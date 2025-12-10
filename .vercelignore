@@ -1,0 +1,12 @@
+# Ignore files that shouldn't be deployed
+node_modules
+.env
+.env.local
+cache
+artifacts
+contracts
+scripts
+hardhat.config.js
+package-lock.json
+deployed.json
+
