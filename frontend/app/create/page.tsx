@@ -117,14 +117,15 @@ export default function CreateEscrowPage() {
         },
         // GoodDollar (G$) on Celo
         // Official address: 0x62B8B11039FcfE5aB0C56E502b1C372A3d2a9c7A
-        ...(CONTRACTS.GDOLLAR_CELO && CONTRACTS.GDOLLAR_CELO !== ZERO_ADDRESS
-          ? {
-              [CONTRACTS.GDOLLAR_CELO.toLowerCase()]: {
-                name: "GoodDollar",
-                symbol: "G$",
-              },
-            }
-          : {}),
+        [CONTRACTS.GDOLLAR_CELO.toLowerCase()]: {
+          name: "GoodDollar",
+          symbol: "G$",
+        },
+        // cUSD on Celo
+        "0x765de816845861e75a25fca122bb6898b8b1282a": {
+          name: "Celo Dollar",
+          symbol: "cUSD",
+        },
       };
 
       const contract = getContract(CONTRACTS.SECUREFLOW_ESCROW, SECUREFLOW_ABI);
@@ -228,11 +229,58 @@ export default function CreateEscrowPage() {
         console.log(`✅ Verified ${allWhitelistedTokens.length} cached tokens`);
       }
 
-      // ALWAYS check recent events to discover newly whitelisted tokens
-      // This catches tokens that were just whitelisted but not yet in cache
-      console.log("🔍 Checking recent events for newly whitelisted tokens...");
+      // IMMEDIATE: Check known tokens directly (FAST - no event queries needed)
+      // G$ and cUSD are already in TOKEN_INFO, just verify they're whitelisted
+      const knownTokenAddresses = [
+        CONTRACTS.GDOLLAR_CELO?.toLowerCase(),
+        "0x765de816845861e75a25fca122bb6898b8b1282a", // cUSD
+      ].filter((addr): addr is string => Boolean(addr));
 
+      console.log("⚡ Fast check: Verifying known tokens directly...");
+      const knownTokenVerification = await Promise.all(
+        knownTokenAddresses.map(async (token) => {
+          try {
+            const isWhitelisted = await contract.call(
+              "whitelistedTokens",
+              token
+            );
+            return isWhitelisted ? token.toLowerCase() : null;
+          } catch {
+            return null;
+          }
+        })
+      );
+      const verifiedKnownTokens = knownTokenVerification.filter(
+        (t): t is string => t !== null
+      );
+      console.log(`✅ Verified ${verifiedKnownTokens.length} known tokens`);
+
+      // SHOW KNOWN TOKENS IMMEDIATELY (G$ and cUSD) - don't wait for anything else
+      if (verifiedKnownTokens.length > 0) {
+        const knownTokensWithInfo = verifiedKnownTokens.map((addr) => {
+          const addrLower = addr.toLowerCase();
+          const info = TOKEN_INFO[addrLower] || {
+            name: `${addrLower.slice(0, 6)}...${addrLower.slice(-4)}`,
+            symbol: "???",
+          };
+          return {
+            address: addrLower,
+            name: info.name,
+            symbol: info.symbol,
+          };
+        });
+        // Show known tokens immediately while we fetch others
+        setWhitelistedTokens(knownTokensWithInfo);
+        console.log("🚀 Showing known tokens immediately:", knownTokensWithInfo);
+      }
+
+      // OPTIONAL: Check recent events (last 500k blocks only) in background
+      // This is non-blocking - we already have cached + known tokens showing
+      let tokensFromEvents: string[] = [];
+      
+      // Only query recent events if we have time (non-blocking)
       try {
+        console.log("🔍 Checking recent events (last 500k blocks) in background...");
         const provider = new ethers.JsonRpcProvider(CELO_MAINNET.rpcUrls[0]);
         const contractWithProvider = new ethers.Contract(
           CONTRACTS.SECUREFLOW_ESCROW,
@@ -241,123 +289,114 @@ export default function CreateEscrowPage() {
         );
 
         const currentBlock = await provider.getBlockNumber();
-        // Query from block 0 to get ALL tokens (like admin page does)
-        // This ensures we find tokens whitelisted at any time
-        const fromBlock = 0;
+        // Only query last 500k blocks (recent history) - much faster!
+        const fromBlock = Math.max(0, currentBlock - 500000);
+        const maxBlocksToQuery = 500000;
+        const chunkSize = 50000; // Larger chunks for speed
 
         console.log(
-          `📡 Querying recent events (blocks ${fromBlock} to ${currentBlock})...`
+          `📡 Querying recent events (blocks ${fromBlock} to ${currentBlock}, max ${maxBlocksToQuery} blocks)...`
         );
 
-        // Query events in chunks with timeout to avoid hanging (like admin page)
-        const chunkSize = 10000; // 10k blocks per chunk (same as admin page)
-        let whitelistedEvents: any[] = [];
-        let blacklistedEvents: any[] = [];
+        // Race condition: timeout after 10 seconds max
+        const eventQueryPromise = (async () => {
+          let whitelistedEvents: any[] = [];
+          let blacklistedEvents: any[] = [];
+          let blocksQueried = 0;
 
-        console.log(
-          `📡 Querying events from block ${fromBlock} to ${currentBlock} in chunks of ${chunkSize}...`
-        );
-
-        // Query in chunks with timeout protection
-        for (
-          let startBlock = fromBlock;
-          startBlock <= currentBlock;
-          startBlock += chunkSize
-        ) {
-          const endBlock = Math.min(startBlock + chunkSize - 1, currentBlock);
-          try {
-            const chunkQueryPromise = Promise.all([
-              contractWithProvider
-                .queryFilter(
-                  contractWithProvider.filters.TokenWhitelisted(),
-                  startBlock,
-                  endBlock
-                )
-                .catch(() => []),
-              contractWithProvider
-                .queryFilter(
-                  contractWithProvider.filters.TokenBlacklisted(),
-                  startBlock,
-                  endBlock
-                )
-                .catch(() => []),
-            ]);
-
-            const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error("Chunk timeout")), 5000)
+          for (
+            let startBlock = fromBlock;
+            startBlock <= currentBlock && blocksQueried < maxBlocksToQuery;
+            startBlock += chunkSize
+          ) {
+            const endBlock = Math.min(
+              startBlock + chunkSize - 1,
+              currentBlock,
+              fromBlock + maxBlocksToQuery - 1
             );
+            try {
+              const [whitelisted, blacklisted] = await Promise.all([
+                contractWithProvider
+                  .queryFilter(
+                    contractWithProvider.filters.TokenWhitelisted(),
+                    startBlock,
+                    endBlock
+                  )
+                  .catch(() => []),
+                contractWithProvider
+                  .queryFilter(
+                    contractWithProvider.filters.TokenBlacklisted(),
+                    startBlock,
+                    endBlock
+                  )
+                  .catch(() => []),
+              ]);
 
-            const [whitelisted, blacklisted] = (await Promise.race([
-              chunkQueryPromise,
-              timeoutPromise,
-            ])) as [any[], any[]];
+              whitelistedEvents.push(...whitelisted);
+              blacklistedEvents.push(...blacklisted);
+              blocksQueried += endBlock - startBlock + 1;
 
-            whitelistedEvents.push(...whitelisted);
-            blacklistedEvents.push(...blacklisted);
-
-            if (whitelisted.length > 0 || blacklisted.length > 0) {
-              console.log(
-                `  ✓ Blocks ${startBlock}-${endBlock}: ${whitelisted.length} whitelisted, ${blacklisted.length} blacklisted`
-              );
+              if (whitelisted.length > 0 || blacklisted.length > 0) {
+                console.log(
+                  `  ✓ Blocks ${startBlock}-${endBlock}: ${whitelisted.length} whitelisted, ${blacklisted.length} blacklisted`
+                );
+              }
+            } catch (error: any) {
+              console.warn(`  ⚠️ Skipped chunk ${startBlock}-${endBlock}`);
+              continue;
             }
-          } catch (error: any) {
-            // Skip this chunk if it times out or fails, but continue with next chunks
-            console.warn(
-              `  ⚠️ Skipped chunk ${startBlock}-${endBlock}:`,
-              error.message
-            );
-            // Don't break - continue with next chunks
-            continue;
           }
-        }
 
-        console.log(
-          `📊 Total events found: ${whitelistedEvents.length} whitelisted, ${blacklistedEvents.length} blacklisted`
+          // Extract token addresses from events
+          const whitelisted = new Set<string>();
+          whitelistedEvents.forEach((event: any) => {
+            if (event.args && event.args.token) {
+              const addr = event.args.token.toString().toLowerCase();
+              if (addr && addr !== ZERO_ADDRESS.toLowerCase()) {
+                whitelisted.add(addr);
+              }
+            } else if (event.args && event.args[0]) {
+              const addr = event.args[0].toString().toLowerCase();
+              if (addr && addr !== ZERO_ADDRESS.toLowerCase()) {
+                whitelisted.add(addr);
+              }
+            }
+          });
+          blacklistedEvents.forEach((event: any) => {
+            if (event.args && event.args.token) {
+              whitelisted.delete(event.args.token.toString().toLowerCase());
+            } else if (event.args && event.args[0]) {
+              whitelisted.delete(event.args[0].toString().toLowerCase());
+            }
+          });
+
+          return Array.from(whitelisted);
+        })();
+
+        // Timeout after 10 seconds - don't block the UI
+        const timeoutPromise = new Promise<string[]>((resolve) =>
+          setTimeout(() => {
+            console.log("⏱️ Event query timeout (10s) - continuing with cached/known tokens");
+            resolve([]);
+          }, 10000)
         );
 
-        // Extract token addresses from events (matching admin page logic)
-        const whitelisted = new Set<string>();
-        whitelistedEvents.forEach((event: any) => {
-          // Match admin page parsing: event.args && event.args.token
-          if (event.args && event.args.token) {
-            const addr = event.args.token.toString().toLowerCase();
-            if (addr && addr !== ZERO_ADDRESS.toLowerCase()) {
-              whitelisted.add(addr);
-            }
-          } else if (event.args && event.args[0]) {
-            // Fallback for different event format
-            const addr = event.args[0].toString().toLowerCase();
-            if (addr && addr !== ZERO_ADDRESS.toLowerCase()) {
-              whitelisted.add(addr);
-            }
-          }
-        });
-        blacklistedEvents.forEach((event: any) => {
-          // Match admin page parsing
-          if (event.args && event.args.token) {
-            whitelisted.delete(event.args.token.toString().toLowerCase());
-          } else if (event.args && event.args[0]) {
-            whitelisted.delete(event.args[0].toString().toLowerCase());
-          }
-        });
+        tokensFromEvents = await Promise.race([
+          eventQueryPromise,
+          timeoutPromise,
+        ]);
 
-        const tokensFromEvents = Array.from(whitelisted);
         console.log(
-          `📋 Found ${tokensFromEvents.length} tokens from events (from block ${fromBlock} to ${currentBlock}):`,
-          tokensFromEvents
+          `📋 Found ${tokensFromEvents.length} tokens from recent events`
         );
 
-        // If we found 0 tokens from events but have cached tokens,
-        // it might mean events aren't loading. Double-check localStorage.
-        if (tokensFromEvents.length === 0 && cachedTokens.length > 0) {
-          console.log(
-            "⚠️ No tokens found in events, but we have cached tokens. Verifying cached tokens..."
-          );
-        }
-
-        // Merge with cached/verified tokens
+        // Merge: cached tokens + verified known tokens + tokens from events
         const allTokensToCheck = [
-          ...new Set([...allWhitelistedTokens, ...tokensFromEvents]),
+          ...new Set([
+            ...allWhitelistedTokens,
+            ...verifiedKnownTokens,
+            ...tokensFromEvents,
+          ]),
         ];
 
         console.log(
@@ -397,8 +436,8 @@ export default function CreateEscrowPage() {
           console.log("💾 Updated localStorage with all verified tokens");
         }
       } catch (error) {
-        console.warn("Recent event check failed:", error);
-        // Continue with cached tokens if event query fails
+        console.warn("Event query failed (non-critical):", error);
+        // Continue with cached + known tokens if event query fails
       }
 
       // Update localStorage cache with verified tokens (already done above if events succeeded)
