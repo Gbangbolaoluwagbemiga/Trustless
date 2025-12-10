@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback, ReactNode } from "react";
 import { SelfQRcodeWrapper, SelfAppBuilder } from "@selfxyz/qrcode";
 import { ethers } from "ethers";
 import { useWeb3 } from "@/contexts/web3-context";
@@ -99,7 +99,7 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
   }, [wallet.address, wallet.isConnected]);
 
   // Check verification status from contract (only updates state if changed)
-  const checkVerificationStatus = async (skipStateUpdate = false) => {
+  const checkVerificationStatus = useCallback(async (skipStateUpdate = false) => {
     if (!wallet.isConnected || !wallet.address) {
       if (!skipStateUpdate) {
         setIsVerified(false);
@@ -184,20 +184,20 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
       }
       return false;
     }
-  };
+  }, [wallet.isConnected, wallet.address, verificationAvailable, getContract]);
 
   // Stop polling function
-  const stopPolling = () => {
+  const stopPolling = useCallback(() => {
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;
     }
     setIsVerifying(false);
     hasStartedVerificationRef.current = false;
-  };
+  }, []);
 
   // Verify identity using Self Protocol
-  const verifyIdentity = async () => {
+  const verifyIdentity = useCallback(async () => {
     if (!wallet.isConnected || !wallet.address) {
       toast({
         title: "Wallet not connected",
@@ -303,14 +303,14 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
         variant: "destructive",
       });
     }
-  };
+  }, [wallet.isConnected, wallet.address, selfApp, toast, stopPolling, checkVerificationStatus, getContract]);
 
   // Cleanup polling on unmount or when wallet changes
   useEffect(() => {
     return () => {
       stopPolling();
     };
-  }, [wallet.address]);
+  }, [wallet.address, stopPolling]);
 
   // Check verification status when wallet connects (but don't poll if already verifying)
   useEffect(() => {
@@ -324,78 +324,92 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
       setVerificationTimestamp(null);
       stopPolling();
     }
-  }, [wallet.isConnected, wallet.address]);
+  }, [wallet.isConnected, wallet.address, checkVerificationStatus, stopPolling]);
+
+  // Memoize callbacks to prevent QR code component re-renders
+  const handleQRSuccess = useCallback(() => {
+    // Verification success is handled by polling mechanism
+    console.log("Self Protocol QR: Success callback triggered");
+  }, []);
+
+  const handleQRError = useCallback((error: any) => {
+    // Error handling - log but don't interrupt polling
+    console.error("Self Protocol QR: Error callback triggered", error);
+  }, []);
 
   // Self Verification Component (QR Code Wrapper) - Stable component to prevent QR regeneration
-  const SelfVerificationComponent = React.useCallback(() => {
-    // Check if we're on localhost
-    const isLocalhost = typeof window !== "undefined" && 
-      (window.location.hostname === "localhost" || 
-       window.location.hostname === "127.0.0.1" ||
-       window.location.hostname === "");
+  const SelfVerificationComponent = useMemo(() => {
+    // Return a memoized component that only re-renders when selfApp changes
+    const Component = () => {
+      // Check if we're on localhost
+      const isLocalhost = typeof window !== "undefined" && 
+        (window.location.hostname === "localhost" || 
+         window.location.hostname === "127.0.0.1" ||
+         window.location.hostname === "");
 
-    if (isLocalhost) {
+      if (isLocalhost) {
+        return (
+          <div className="p-4 text-center text-sm text-muted-foreground">
+            <p className="mb-2">Self Protocol verification is not available on localhost.</p>
+            <p>Please deploy to a production environment to use identity verification.</p>
+          </div>
+        );
+      }
+
+      if (!selfApp) {
+        return (
+          <div className="p-4 text-center text-sm text-muted-foreground">
+            Initializing verification...
+          </div>
+        );
+      }
+
       return (
-        <div className="p-4 text-center text-sm text-muted-foreground">
-          <p className="mb-2">Self Protocol verification is not available on localhost.</p>
-          <p>Please deploy to a production environment to use identity verification.</p>
-        </div>
-      );
-    }
-
-    if (!selfApp) {
-      return (
-        <div className="p-4 text-center text-sm text-muted-foreground">
-          Initializing verification...
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex flex-col items-center gap-4 p-6">
-        <SelfQRcodeWrapper 
-          selfApp={selfApp}
-          onSuccess={() => {
-            // Verification success is handled by polling mechanism
-            console.log("Self Protocol QR: Success callback triggered");
-          }}
-          onError={(error: any) => {
-            // Error handling - log but don't interrupt polling
-            console.error("Self Protocol QR: Error callback triggered", error);
-          }}
-        />
-        <div className="text-sm text-muted-foreground text-center max-w-md space-y-2">
-          <p>
-            Scan this QR code with the Self mobile app to verify your identity.
-          </p>
-          <div className="text-xs space-y-1 mt-3 p-3 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
-            <p className="font-semibold text-blue-900 dark:text-blue-100">Requirements:</p>
-            <ul className="list-disc list-inside space-y-1 text-blue-800 dark:text-blue-200">
-              <li>Self mobile app installed</li>
-              <li>Valid passport or government ID (NFC-enabled) added to Self app</li>
-              <li>Must be at least 18 years old</li>
-              <li>Stable internet connection</li>
-            </ul>
-            <p className="mt-2 text-blue-700 dark:text-blue-300">
-              The verification will confirm your age and identity using your government-issued ID.
+        <div className="flex flex-col items-center gap-4 p-6">
+          <SelfQRcodeWrapper 
+            key={wallet.address || 'default'} // Stable key to prevent unnecessary remounts
+            selfApp={selfApp}
+            onSuccess={handleQRSuccess}
+            onError={handleQRError}
+          />
+          <div className="text-sm text-muted-foreground text-center max-w-md space-y-2">
+            <p>
+              Scan this QR code with the Self mobile app to verify your identity.
             </p>
+            <div className="text-xs space-y-1 mt-3 p-3 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
+              <p className="font-semibold text-blue-900 dark:text-blue-100">Requirements:</p>
+              <ul className="list-disc list-inside space-y-1 text-blue-800 dark:text-blue-200">
+                <li>Self mobile app installed</li>
+                <li>Valid passport or government ID (NFC-enabled) added to Self app</li>
+                <li>Must be at least 18 years old</li>
+                <li>Stable internet connection</li>
+              </ul>
+              <p className="mt-2 text-blue-700 dark:text-blue-300">
+                The verification will confirm your age and identity using your government-issued ID.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
-    );
-  }, [selfApp]); // Only recreate if selfApp changes
+      );
+    };
+    return Component;
+  }, [selfApp, handleQRSuccess, handleQRError]); // Only recreate if selfApp or callbacks change
+
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(
+    () => ({
+      isVerified,
+      isVerifying,
+      verificationTimestamp,
+      verifyIdentity,
+      checkVerificationStatus,
+      SelfVerificationComponent,
+    }),
+    [isVerified, isVerifying, verificationTimestamp, verifyIdentity, checkVerificationStatus, SelfVerificationComponent]
+  );
 
   return (
-    <SelfVerificationContext.Provider
-      value={{
-        isVerified,
-        isVerifying,
-        verificationTimestamp,
-        verifyIdentity,
-        checkVerificationStatus,
-        SelfVerificationComponent,
-      }}
-    >
+    <SelfVerificationContext.Provider value={contextValue}>
       {children}
     </SelfVerificationContext.Provider>
   );
