@@ -171,19 +171,47 @@ export async function POST(request: NextRequest) {
       const selfVerifier = await getVerifier();
       
       // Determine attestation ID - check multiple possible locations
-      const verificationAttestationId = finalAttestationId || 
-                           finalProof?.attestationId || 
-                           finalProof?.attestation_id ||
-                           "minimumAge"; // Default to minimumAge (since we request minimumAge: 18)
+      // Self Protocol may send attestationId as a number (e.g., 1) or string
+      // Convert number to string mapping: 1 = "humanity"
+      let verificationAttestationId: string = "humanity"; // Default
+      
+      if (finalAttestationId !== undefined && finalAttestationId !== null) {
+        // If it's a number, map it to the attestation type
+        if (typeof finalAttestationId === 'number') {
+          // Map common attestation IDs to types
+          const attestationMap: { [key: number]: string } = {
+            1: "humanity",
+            2: "minimumAge",
+            3: "ageRange",
+          };
+          verificationAttestationId = attestationMap[finalAttestationId] || "humanity";
+        } else {
+          verificationAttestationId = String(finalAttestationId);
+        }
+      } else if (finalProof?.attestationId) {
+        const proofAttestationId = finalProof.attestationId;
+        if (typeof proofAttestationId === 'number') {
+          const attestationMap: { [key: number]: string } = {
+            1: "humanity",
+            2: "minimumAge",
+            3: "ageRange",
+          };
+          verificationAttestationId = attestationMap[proofAttestationId] || "humanity";
+        } else {
+          verificationAttestationId = String(proofAttestationId);
+        }
+      }
       
       console.log("🔍 Verifying with:", {
         attestationId: verificationAttestationId,
+        rawAttestationId: finalAttestationId,
         hasProof: !!finalProof,
         hasPubSignals: !!finalPubSignals,
         pubSignalsLength: finalPubSignals?.length,
         userAddress: finalUserAddress || "NOT PROVIDED - will extract from verification"
       });
       
+      // Verify the proof - Self Protocol verifier handles the proof validation
       const verificationResult = await selfVerifier.verify(
         verificationAttestationId,
         finalProof,

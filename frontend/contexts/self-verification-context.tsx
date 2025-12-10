@@ -77,9 +77,12 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
         userIdType: 'hex', // Address is hex format
         version: 2,
         disclosures: {
-          // Request minimum age verification (18+) - ensures user is a real person
-          minimumAge: 18,
+          // Request humanity verification - ensures user is a real person
+          // Note: minimumAge requires specific attestation configuration
+          // Using humanity for broader compatibility
+          humanity: true,
           // You can add more disclosures as needed:
+          // minimumAge: 18,
           // issuing_state: false,
           // name: false,
           // date_of_birth: false,
