@@ -97,7 +97,7 @@ export function GDOLLARBalance({ showClaimButton = true, compact = false }: GDOL
             <Button
               variant="outline"
               size="sm"
-              onClick={() => window.open("https://wallet.gooddollar.org/", "_blank")}
+              onClick={() => window.open("https://goodwallet.xyz/", "_blank")}
               className="flex-1"
             >
               <ExternalLink className="h-4 w-4 mr-2" />
@@ -124,4 +124,3 @@ export function GDOLLARBalance({ showClaimButton = true, compact = false }: GDOL
     </Card>
   );
 }
-

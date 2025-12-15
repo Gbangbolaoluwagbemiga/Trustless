@@ -205,7 +205,7 @@ SecureFlow supports GoodDollar (G$) payments:
 - **Seamless Integration**: Works with all existing escrow features
 
 **Get G$ Tokens:**
-1. Install GoodWallet: https://wallet.gooddollar.org/
+1. Install GoodWallet V2: https://goodwallet.xyz/
 2. Claim daily G$ UBI
 3. Use G$ for SecureFlow payments
 

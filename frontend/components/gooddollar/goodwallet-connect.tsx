@@ -43,7 +43,7 @@ export function GoodWalletConnect() {
         <div className="flex gap-2 pt-2">
           <Button
             variant="default"
-            onClick={() => window.open("https://wallet.gooddollar.org/", "_blank")}
+            onClick={() => window.open("https://goodwallet.xyz/", "_blank")}
             className="flex-1"
           >
             <Wallet className="h-4 w-4 mr-2" />
@@ -66,4 +66,3 @@ export function GoodWalletConnect() {
     </Card>
   );
 }
-
