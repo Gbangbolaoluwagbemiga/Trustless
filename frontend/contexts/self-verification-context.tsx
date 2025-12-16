@@ -73,6 +73,20 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
       const scopeEnv = (process.env.NEXT_PUBLIC_SELF_SCOPE as string) || "";
       const scopeAuto = endpointIsPlayground ? "self-playground" : (scopeEnv && scopeEnv !== "self-playground" ? scopeEnv : "secureflow-identity");
 
+      const disclosuresPayload = endpointIsPlayground
+        ? {
+            minimumAge: 18,
+            excludedCountries: [],
+            ofac: false,
+          }
+        : {
+            minimumAge: 18,
+            excludedCountries: [],
+            ofac: false,
+            nationality: true,
+            gender: true,
+          };
+
       const app = new SelfAppBuilder({
         appName: "SecureFlow",
         logoBase64: `${window.location.origin}/secureflow-logo.svg`,
@@ -85,13 +99,7 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
         version: 2,
         chainID: 42220,
         userDefinedData: "secureflow|identity_verification|age>=18",
-        disclosures: {
-          minimumAge: 18,
-          excludedCountries: [],
-          ofac: false,
-          nationality: true,
-          gender: true,
-        } as any,
+        disclosures: disclosuresPayload as any,
       }).build();
 
       console.log("[Self] Builder payload:", {
@@ -100,13 +108,7 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
         endpoint: endpointOverride,
         scope: scopeAuto,
         userId: wallet.address.toLowerCase(),
-        disclosures: {
-          minimumAge: 18,
-          excludedCountries: [],
-          ofac: false,
-          nationality: true,
-          gender: true,
-        },
+        disclosures: disclosuresPayload,
       });
 
       setSelfApp(app);
