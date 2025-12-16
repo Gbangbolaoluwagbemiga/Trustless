@@ -65,11 +65,13 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
 
     try {
       const hostname = window.location.hostname || "";
-      const endpointTypeEnv = process.env.NEXT_PUBLIC_SELF_ENDPOINT_TYPE as any;
-      const autoEndpointType = endpointTypeEnv ?? (hostname.endsWith("vercel.app") ? "staging_https" : "https");
-      const devModeAuto = typeof autoEndpointType === "string" && autoEndpointType.includes("staging");
       const endpointOverride = (process.env.NEXT_PUBLIC_SELF_ENDPOINT as string) || `${window.location.origin}/api/self/verify`;
-      const scopeAuto = (process.env.NEXT_PUBLIC_SELF_SCOPE as string) || (endpointOverride.includes("playground.self.xyz") ? "self-playground" : "secureflow-identity");
+      const endpointIsPlayground = endpointOverride.includes("playground.self.xyz");
+      const endpointTypeEnv = process.env.NEXT_PUBLIC_SELF_ENDPOINT_TYPE as any;
+      const autoEndpointType = endpointIsPlayground ? "https" : (endpointTypeEnv ?? (hostname.endsWith("vercel.app") ? "staging_https" : "https"));
+      const devModeAuto = endpointIsPlayground ? false : (typeof autoEndpointType === "string" && autoEndpointType.includes("staging"));
+      const scopeEnv = (process.env.NEXT_PUBLIC_SELF_SCOPE as string) || "";
+      const scopeAuto = endpointIsPlayground ? "self-playground" : (scopeEnv && scopeEnv !== "self-playground" ? scopeEnv : "secureflow-identity");
 
       const app = new SelfAppBuilder({
         appName: "SecureFlow",
@@ -356,15 +358,20 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
     console.error("Self Protocol QR: Error callback triggered", error);
     const reason = error?.reason || error?.message || "Proof generation failed";
     const isStaging = typeof process !== "undefined" && (process.env.NEXT_PUBLIC_SELF_ENDPOINT_TYPE || "").includes("staging");
+    const isPlayground = typeof process !== "undefined" && ((process.env.NEXT_PUBLIC_SELF_ENDPOINT || "").includes("playground.self.xyz"));
     const hint =
       typeof reason === "string" && reason.includes("Unsupported number of inputs")
         ? "This usually means the Self app has no document loaded for staging. Add a mock passport in the Self app settings and retry."
+        : (typeof reason === "string" && reason.includes("Config not found"))
+        ? "Ensure scope and endpoint type match. Use self-playground only with the Playground endpoint; use secureflow-identity with your own HTTPS endpoint."
         : (isStaging && (reason === "error" || (typeof reason === "string" && reason.toLowerCase() === "error")))
         ? "On staging, ensure you have a mock passport set up in the Self mobile app before scanning the QR."
+        : (!isStaging && isPlayground && (reason === "error" || (typeof reason === "string" && reason.toLowerCase() === "error")))
+        ? "On Playground (production), ensure you are using a real NFC passport in the Self mobile app."
         : undefined;
     toast({
       title: "Verification error",
-      description:
+        description:
         hint
           ? `${reason}. ${hint}`
           : typeof reason === "string"
