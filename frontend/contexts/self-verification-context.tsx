@@ -83,10 +83,24 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
         userDefinedData: "secureflow|identity_verification|age>=18",
         disclosures: {
           minimumAge: 18,
+          olderThan: 18,
           excludedCountries: [],
           ofac: false,
         } as any,
       }).build();
+
+      console.log("[Self] Builder payload:", {
+        endpointType: autoEndpointType,
+        devMode: devModeAuto,
+        scope: "secureflow-identity",
+        userId: wallet.address.toLowerCase(),
+        disclosures: {
+          minimumAge: 18,
+          olderThan: 18,
+          excludedCountries: [],
+          ofac: false,
+        },
+      });
 
       setSelfApp(app);
     } catch (error: any) {
