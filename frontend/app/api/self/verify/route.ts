@@ -18,8 +18,9 @@ async function getVerifier() {
       (typeof endpointType === 'string' && endpointType.includes('staging')) ||
       process.env.SELF_DEV_MODE === 'true'
     );
+    const scopeEnv = process.env.NEXT_PUBLIC_SELF_SCOPE || "secureflow-identity";
     verifier = new SelfBackendVerifier(
-      "secureflow-identity",
+      scopeEnv,
       "",
       mockPassport,
       AllIds,

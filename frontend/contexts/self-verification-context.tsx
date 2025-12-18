@@ -68,11 +68,17 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
       const endpointOverride = (process.env.NEXT_PUBLIC_SELF_ENDPOINT as string) || `${window.location.origin}/api/self/verify`;
       const endpointIsPlayground = endpointOverride.includes("playground.self.xyz");
       const endpointTypeEnv = process.env.NEXT_PUBLIC_SELF_ENDPOINT_TYPE as any;
-      const autoEndpointType = endpointIsPlayground ? "https" : (endpointTypeEnv ?? (hostname.endsWith("vercel.app") ? "staging_https" : "https"));
+      // Default to 'https' (production) for Vercel deployments unless explicitly set to staging
+      const autoEndpointType = endpointIsPlayground ? "https" : (endpointTypeEnv ?? "https");
       const devModeAuto = endpointIsPlayground ? false : (typeof autoEndpointType === "string" && autoEndpointType.includes("staging"));
       const scopeEnv = (process.env.NEXT_PUBLIC_SELF_SCOPE as string) || "";
       const scopeAuto = endpointIsPlayground ? "self-playground" : (scopeEnv && scopeEnv !== "self-playground" ? scopeEnv : "secureflow-identity");
 
+      // Warning for common configuration issues
+      if (scopeAuto.length > 30 && scopeAuto.includes("-") && !scopeAuto.includes(" ")) {
+        console.warn("[Self] The provided scope looks like a UUID/Project ID. Self Protocol scopes are typically short strings (e.g., 'secureflow-app'). Ensure you are using the Scope Name, not the Project ID.");
+      }
+      
       const disclosuresPayload = {
         minimumAge: 18,
         excludedCountries: [],
