@@ -19,7 +19,9 @@ async function getVerifier() {
       process.env.SELF_DEV_MODE === 'true'
     );
     const scopeEnv = process.env.SELF_SCOPE_ID || process.env.NEXT_PUBLIC_SELF_SCOPE || "secureflow-identity";
-    const configId = process.env.NEXT_PUBLIC_SELF_CONFIG_ID || "";
+    // const configId = process.env.NEXT_PUBLIC_SELF_CONFIG_ID || "";
+    // Reverting to ad-hoc verification to match ZeroSum style (no configId)
+    const configId = ""; 
     verifier = new SelfBackendVerifier(
       scopeEnv,
       configId,

@@ -85,9 +85,14 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
         console.warn("[Self] The provided scope looks like a UUID/Project ID. Self Protocol scopes are typically short strings (e.g., 'secureflow-app'). Ensure you are using the Scope Name, not the Project ID.");
       }
       
-      const disclosuresPayload = [
-        { type: "minimumAge", value: 18 }
-      ] as any;
+      // Mimic ZeroSum's implementation for disclosures
+      const disclosuresPayload = {
+        minimumAge: 18,
+        nationality: true,
+        gender: false,
+        excludedCountries: ["IRN", "PRK", "RUS", "SYR"],
+        ofac: true,
+      } as any;
 
       const app = new SelfAppBuilder({
         appName: "SecureFlow",
@@ -100,11 +105,11 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
         devMode: devModeAuto,
         version: 2,
         chainID: 42220,
-        userDefinedData: "secureflow|identity_verification|age>=18",
-          // disclosures: disclosuresPayload, // Removed: ConfigID handles requirements
-          attestationId: 1, // Explicitly set for Passport
-          configId: configId,
-        } as any).build();
+        userDefinedData: `SecureFlow Verification - ${wallet.address.toLowerCase()}`,
+        disclosures: disclosuresPayload,
+        // attestationId: 1, // Removed to let SDK infer from disclosures
+        // configId: configId, // Removed to match ZeroSum's ad-hoc style
+      } as any).build();
 
       console.log("[Self] Builder payload:", {
         endpointType: autoEndpointType,
