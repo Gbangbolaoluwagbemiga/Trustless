@@ -160,7 +160,7 @@ interface ISecureFlow {
         uint256 milestoneIndex,
         string calldata description
     ) external;
-    function approveMilestone(uint256 escrowId, uint256 milestoneIndex) external;
+    function approveMilestone(uint256 escrowId, uint256 milestoneIndex, bytes calldata signature) external;
     function rejectMilestone(
         uint256 escrowId,
         uint256 milestoneIndex,

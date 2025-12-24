@@ -68,28 +68,16 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
       const endpointOverride = (process.env.NEXT_PUBLIC_SELF_ENDPOINT as string) || `${window.location.origin}/api/self/verify`;
       const endpointIsPlayground = endpointOverride.includes("playground.self.xyz");
       const endpointTypeEnv = process.env.NEXT_PUBLIC_SELF_ENDPOINT_TYPE as any;
-      // Default to 'https' (production) for Vercel deployments unless explicitly set to staging
-      const autoEndpointType = endpointIsPlayground ? "https" : (endpointTypeEnv ?? "https");
+      const autoEndpointType = endpointIsPlayground ? "https" : (endpointTypeEnv ?? (hostname.endsWith("vercel.app") ? "staging_https" : "https"));
       const devModeAuto = endpointIsPlayground ? false : (typeof autoEndpointType === "string" && autoEndpointType.includes("staging"));
-      const scopeEnv = (process.env.NEXT_PUBLIC_SELF_SCOPE as string) || "secureflow-identity";
+      const scopeEnv = (process.env.NEXT_PUBLIC_SELF_SCOPE as string) || "";
       const scopeAuto = endpointIsPlayground ? "self-playground" : (scopeEnv && scopeEnv !== "self-playground" ? scopeEnv : "secureflow-identity");
-      const configId = process.env.NEXT_PUBLIC_SELF_CONFIG_ID || "";
 
-      // Warning for conflicting configuration
-      if (endpointIsPlayground && scopeEnv && scopeEnv !== "self-playground") {
-        console.error(`[Self] CONFIGURATION MISMATCH: You have set NEXT_PUBLIC_SELF_SCOPE to '${scopeEnv}' but NEXT_PUBLIC_SELF_ENDPOINT points to the Playground. This forces the app to use 'self-playground' scope. Please DELETE the NEXT_PUBLIC_SELF_ENDPOINT environment variable in Vercel to use your custom scope.`);
-      }
-
-      // Warning for common configuration issues
-      if (scopeAuto.length > 30 && scopeAuto.includes("-") && !scopeAuto.includes(" ")) {
-        console.warn("[Self] The provided scope looks like a UUID/Project ID. Self Protocol scopes are typically short strings (e.g., 'secureflow-app'). Ensure you are using the Scope Name, not the Project ID.");
-      }
-      
-      // Simplify disclosures to bare minimum to fix "Unsupported number of inputs: 0"
-      // This error often means the app can't map the requirements to the user's credentials
       const disclosuresPayload = {
         minimumAge: 18,
-      } as any;
+        excludedCountries: [],
+        ofac: false,
+      };
 
       const app = new SelfAppBuilder({
         appName: "SecureFlow",
@@ -101,11 +89,10 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
         userIdType: 'hex',
         devMode: devModeAuto,
         version: 2,
-        // chainID: 42220, // Removed: ZeroSum doesn't use this, might be causing input mismatch
-        userDefinedData: `SecureFlow Verification - ${wallet.address.toLowerCase()}`,
-        disclosures: disclosuresPayload,
-        attestationId: 1, // Explicitly set for Passport to ensure circuit match
-      } as any).build();
+        chainID: 42220,
+        userDefinedData: "secureflow|identity_verification|age>=18",
+        disclosures: disclosuresPayload as any,
+      }).build();
 
       console.log("[Self] Builder payload:", {
         endpointType: autoEndpointType,
@@ -117,12 +104,12 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
       });
 
       setSelfApp(app);
-    } catch (error: any) {
-      console.error("Failed to initialize Self App:", error);
-      setSelfApp(null);
-      // Don't show error to user if it's just a missing wallet
-      if (error.message && !error.message.includes("userId")) {
-        console.error("Self Protocol initialization error details:", error);
+    } catch (erroMimic Zerorum's : anementatyon )or{
+      cons
+o.rdoicoalt disclosiSlsPayloaf = {
+r       morim;mAge  18, setSelpl/o ioruliry:ft 's,
+     sgtg n  r: ff (e,e rror.meex !udedCerntoir.: ["IRN", "mRK",."RUS",n"SYR"],l udes("uofac:str)
+    console.error("Self Protocol initialization error details:", error);
       }
     }
   }, [wallet.address, wallet.isConnected]);
@@ -131,19 +118,15 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
   const checkVerificationStatus = useCallback(async (skipStateUpdate = false) => {
     if (!wallet.isConnected || !wallet.address) {
       if (!skipStateUpdate) {
-        setIsVerified(false);
-      }
-      return false;
-    }
-
-    // If we've already determined verification is not available, skip
+        setIsVerififalse);
+      }ation is not available, skip
     if (verificationAvailable === false) {
       return false;
     }
 
-    // Check localStorage first for quick access
-    if (typeof window !== "undefined") {
-      const cached = localStorage.getItem(`self_verified_${wallet.address.toLowerCase()}`);
+    // Check localStorage first for q// uick access
+    if (tRemoved iool ! SDK=in=e"ufe m{disclo    s
+        // confogId: sonf gId, // Removed coachedh ZeroSum's ad- oc style= localStorage.getItem(`self_verified_${wallet.address.toLowerCase()}`);
       if (cached) {
         try {
           const cachedData = JSON.parse(cached);
