@@ -75,8 +75,6 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
 
       const disclosuresPayload = {
         minimumAge: 18,
-        excludedCountries: [],
-        ofac: false,
       };
 
       const app = new SelfAppBuilder({
@@ -90,7 +88,7 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
         devMode: devModeAuto,
         version: 2,
         chainID: 42220,
-        userDefinedData: "secureflow|identity_verification|age>=18",
+        userDefinedData: `SecureFlow Verification - ${wallet.address.toLowerCase()}`,
         disclosures: disclosuresPayload as any,
       }).build();
 
@@ -104,13 +102,12 @@ export function SelfVerificationProvider({ children }: { children: ReactNode }) 
       });
 
       setSelfApp(app);
-    } catch (erroMimic Zerorum's : anementatyon )or{
-      cons
-o.rdoicoalt disclosiSlsPayloaf = {
-r       morim;mAge  18, setSelpl/o ioruliry:ft 's,
-     sgtg n  r: ff (e,e rror.meex !udedCerntoir.: ["IRN", "mRK",."RUS",n"SYR"],l udes("uofac:str)
-    console.error("Self Protocol initialization error details:", error);
+    } catch (error: any) {
+      console.error("Self Protocol initialization error:", error);
+      if (error.message && !error.message.includes("construct")) {
+        console.error("Self Protocol initialization error details:", error);
       }
+      setSelfApp(null);
     }
   }, [wallet.address, wallet.isConnected]);
 
@@ -118,15 +115,19 @@ r       morim;mAge  18, setSelpl/o ioruliry:ft 's,
   const checkVerificationStatus = useCallback(async (skipStateUpdate = false) => {
     if (!wallet.isConnected || !wallet.address) {
       if (!skipStateUpdate) {
-        setIsVerififalse);
-      }ation is not available, skip
+        setIsVerified(false);
+      }
+      return false;
+    }
+    
+    // If verification is not available, skip
     if (verificationAvailable === false) {
       return false;
     }
 
-    // Check localStorage first for q// uick access
-    if (tRemoved iool ! SDK=in=e"ufe m{disclo    s
-        // confogId: sonf gId, // Removed coachedh ZeroSum's ad- oc style= localStorage.getItem(`self_verified_${wallet.address.toLowerCase()}`);
+    // Check localStorage first for quick access
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem(`self_verified_${wallet.address.toLowerCase()}`);
       if (cached) {
         try {
           const cachedData = JSON.parse(cached);
