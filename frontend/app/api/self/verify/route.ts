@@ -27,7 +27,7 @@ async function getVerifier() {
       configId,
       mockPassport,
       AllIds,
-      new DefaultConfigStore({ minimumAge: 18, excludedCountries: [], ofac: false }),
+      new DefaultConfigStore({ minimumAge: 18 }),
       "hex"
     );
     
